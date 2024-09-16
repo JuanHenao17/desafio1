@@ -1,0 +1,55 @@
+#include <Adafruit_LiquidCrystal.h>
+Adafruit_LiquidCrystal lcd(12, 11, 10, 9, 8, 7);
+float val = 0;
+int amp_max = 0;
+unsigned int tam = 0;
+unsigned int cont = 0;
+float *arr_amp = new float[tam];
+float *resize_arr;
+
+void setup()
+{
+	lcd.begin(16, 2);
+    Serial.begin(19200);
+}
+
+void loop()
+{
+  //Lectura de valores previa a la activacion de los botones
+  val = analogRead(0);
+  val /= 100;
+  Serial.println(val);
+  
+  if (digitalRead(6) == HIGH && digitalRead(5) == LOW)
+  {
+  	//Proceso de adquisicion de informacion.
+    
+    val = analogRead(0);
+  	val /= 100;
+    Serial.println(val);
+    
+    
+    if(cont==tam){
+    	  unsigned int nuevoTam = tam + 1;
+      	
+      	resize_arr = new float[nuevoTam];
+      	
+        for(int i=0; i<tam; i++){
+          resize_arr[i] = arr_amp[i];
+        }  
+    	
+      	delete[] arr_amp;
+    	  arr_amp = resize_arr; 
+    	  tam = nuevoTam;
+    }
+    
+    arr_amp[cont] = val;
+    cont++;
+
+  }
+  else if(digitalRead(6) == HIGH && digitalRead(5) == HIGH)
+  {
+  //Detener proceso de adquisicion y realizar procesamiento de informacion para ser entregada  
+  }
+    
+}
