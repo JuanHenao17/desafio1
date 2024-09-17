@@ -1,7 +1,6 @@
 #include <Adafruit_LiquidCrystal.h>
 Adafruit_LiquidCrystal lcd(12, 11, 10, 9, 8, 7);
 float val = 0;
-int amp_max = 0;
 unsigned int tam = 0;
 unsigned int cont = 0;
 float *arr_amp = new float[tam];
@@ -10,7 +9,7 @@ float *resize_arr;
 void setup()
 {
 	lcd.begin(16, 2);
-    Serial.begin(19200);
+    Serial.begin(9200);
 }
 
 void loop()
@@ -19,6 +18,7 @@ void loop()
   val = analogRead(0);
   val /= 100;
   Serial.println(val);
+  delay(50);
   
   if (digitalRead(6) == HIGH && digitalRead(5) == LOW)
   {
@@ -30,26 +30,93 @@ void loop()
     
     
     if(cont==tam){
-    	  unsigned int nuevoTam = tam + 1;
+    	unsigned int nuevoTam = tam + 1;
       	
       	resize_arr = new float[nuevoTam];
       	
-        for(int i=0; i<tam; i++){
+      	for(int i=0; i<tam; i++){
           resize_arr[i] = arr_amp[i];
         }  
     	
       	delete[] arr_amp;
-    	  arr_amp = resize_arr; 
-    	  tam = nuevoTam;
+    	arr_amp = resize_arr; 
+    	tam = nuevoTam;
     }
     
     arr_amp[cont] = val;
     cont++;
-
+	delay(50);
   }
+  
   else if(digitalRead(6) == HIGH && digitalRead(5) == HIGH)
   {
-  //Detener proceso de adquisicion y realizar procesamiento de informacion para ser entregada  
-  }
+  
+    //Detener proceso de adquisicion y realizar procesamiento de
+    //informacion para ser entregada  
     
+    calcularFrecuencia(arr_amp, tam);
+    calcularAmplitud(arr_amp, tam);
+  	delay(50);
+  }  
+}
+
+void calcularFrecuencia(float *arr, int esp){
+  unsigned int cont_picos = 0;
+  unsigned int cont_datos = 0;
+  
+  for (int i = 1; i< tam-1; i++){
+  	
+    if (esPicoMaximo(arr_amp[i-1], arr_amp[i], arr_amp[i+1])) {
+    	cont_picos++;
+    
+    	if (cont_picos >= 2){
+  			float periodo = 50.0 * cont_datos;
+  			cont_datos = 0;
+          	float frecuencia = 1000.0 / periodo;
+        	lcd.setCursor(0, 0);
+  			lcd.print("Frecuencia:");
+  			lcd.setCursor(0, 1);
+  			lcd.print(frecuencia);
+  			delay(250);
+  		}  
+  	}
+    else{
+    	cont_datos++;	
+    }  
+  }
+}
+
+bool esPicoMaximo(float anterior, float actual, float siguiente) {
+    return (anterior < actual && actual > siguiente);
+}
+
+void calcularAmplitud(float *arr, int esp) {
+    if (esp == 0)
+    {
+        lcd.setCursor(0, 0);
+        lcd.print("No hay datos");
+        return;
+    }
+
+    float max = arr[0];
+    float min = arr[0];
+
+    for (int i = 1; i < esp; i++)
+    {
+        if (arr[i] > max)
+        {
+            max = arr[i];
+        }
+        if (arr[i] < min)
+        {
+            min = arr[i];
+        }
+    }
+
+    float amplitud = (max - min)/2.0;
+    lcd.setCursor(0, 0);
+    lcd.print("Amplitud:");
+    lcd.setCursor(0, 1);
+    lcd.print(amplitud);
+    delay(250);
 }
