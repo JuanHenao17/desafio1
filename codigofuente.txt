@@ -5,11 +5,15 @@ unsigned int tam = 0;
 unsigned int cont = 0;
 float *arr_amp = new float[tam];
 float *resize_arr;
+unsigned long lastTime = 0; 
+unsigned long currentTime = 0;  
+unsigned long timeDiff = 0; 
 
 void setup()
 {
 	lcd.begin(16, 2);
     Serial.begin(9200);
+	lastTime = millis();
 }
 
 void loop()
@@ -18,7 +22,7 @@ void loop()
   val = analogRead(0);
   val /= 100;
   Serial.println(val);
-  delay(50);
+  delay(1);
   
   if (digitalRead(6) == HIGH && digitalRead(5) == LOW)
   {
@@ -45,7 +49,13 @@ void loop()
     
     arr_amp[cont] = val;
     cont++;
-	delay(50);
+  
+    currentTime = millis();
+    timeDiff = currentTime - lastTime;
+    lastTime = currentTime;
+    Serial.print("Tiempo entre datos: ");
+    Serial.print(timeDiff);
+    Serial.println(" ms");
   }
   
   else if(digitalRead(6) == HIGH && digitalRead(5) == HIGH)
@@ -54,23 +64,31 @@ void loop()
     //Detener proceso de adquisicion y realizar procesamiento de
     //informacion para ser entregada  
     
-    calcularFrecuencia(arr_amp, tam);
     calcularAmplitud(arr_amp, tam);
-  	delay(50);
+    delay(250);
+    lcd.clear();
+    
+    calcularFrecuencia(arr_amp, tam);
+    delay(250);
+    lcd.clear();
+    
+    tipoDeSenal(arr_amp, tam); 
+    delay(250);
+  	lcd.clear();
   }  
 }
 
 void calcularFrecuencia(float *arr, int esp){
-  unsigned int cont_picos = 0;
-  unsigned int cont_datos = 0;
+	unsigned int cont_picos = 0;
+  	unsigned int cont_datos = 0;
   
-  for (int i = 1; i< tam-1; i++){
+  	for (int i = 1; i< tam-1; i++){
   	
     if (esPicoMaximo(arr_amp[i-1], arr_amp[i], arr_amp[i+1])) {
     	cont_picos++;
     
     	if (cont_picos >= 2){
-  			float periodo = 50.0 * cont_datos;
+  			float periodo = 43.5 * cont_datos;
   			cont_datos = 0;
           	float frecuencia = 1000.0 / periodo;
         	lcd.setCursor(0, 0);
@@ -80,15 +98,17 @@ void calcularFrecuencia(float *arr, int esp){
   			delay(250);
   		}  
   	}
-    else{
+    else if(cont_picos >= 1){
     	cont_datos++;	
     }  
   }
 }
 
+
 bool esPicoMaximo(float anterior, float actual, float siguiente) {
-    return (anterior < actual && actual > siguiente);
+    return (anterior < actual && actual >= siguiente);
 }
+
 
 void calcularAmplitud(float *arr, int esp) {
     if (esp == 0)
@@ -119,4 +139,67 @@ void calcularAmplitud(float *arr, int esp) {
     lcd.setCursor(0, 1);
     lcd.print(amplitud);
     delay(250);
+}
+
+void tipoDeSenal(float *arr, int esp) {
+  
+  if(esCuadrada(arr, esp)){
+  lcd.setCursor(0, 0);	
+  lcd.print("Tipo: Cuadrada");
+  delay(250);
+  }  
+	
+  else if(esTriangular(arr, esp)){
+  lcd.setCursor(0, 0);	
+  lcd.print("Tipo: Triangular");
+  delay(250);
+  }  
+}
+
+bool esCuadrada(float *arr, int esp) {
+	for (int i = 0; i < esp-1; i++) {
+  	
+      if(arr[i] == arr[i+1] || arr[i] == -1*(arr[i+1])){
+      }
+      else {
+      	return false;
+      }
+    } 
+	return true;	
+} 
+
+bool esTriangular(float *arr, int esp) {
+	
+  	float resta_max = arr_amp[0];
+  	float resta_min = arr_amp[0];
+  	float aux = arr_amp[0];
+    float sum_resta = 0;
+  	int cont_prom = 0;	
+	float prom;
+  	
+  	for(int i = 1; i<tam; i++){
+    	float resta = arr_amp[i] - aux;  
+    	if (resta > resta_max)
+        {
+            resta_max = resta;
+        }
+        if (resta < resta_min)
+        {
+            resta_min = resta;
+        }
+      
+      	sum_resta += resta;
+    	cont_prom++;
+        aux = arr_amp[i];
+    	
+	}
+	
+  	prom = sum_resta/cont_prom; 
+	
+  	if(prom<resta_max && prom>resta_min){
+    	return true;
+    }
+  	else{
+		return false;
+    }
 }
