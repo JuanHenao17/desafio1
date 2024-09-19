@@ -198,34 +198,24 @@ bool esCuadrada(float *arr, int esp) {
 
 bool esTriangular(float *arr, int esp) {
 	
-  	float resta_max = arr_amp[0];
-  	float resta_min = arr_amp[0];
-  	float aux = arr_amp[0];
+  	float aux = arr[0];
     float sum_resta = 0;
   	int cont_prom = 0;	
 	float prom;
   	
   	for(int i = 1; i<tam; i++){
-    	float resta = arr_amp[i] - aux;  
-    	if (resta > resta_max)
-        {
-            resta_max = resta;
-        }
-        if (resta < resta_min)
-        {
-            resta_min = resta;
-        }
+    	float resta = arr[i] - aux;  
       
       	sum_resta += resta;
     	cont_prom++;
-        aux = arr_amp[i];
+        aux = arr[i];
     	
 	}
 	
   	prom = sum_resta/cont_prom; 
 	
-  	if(prom<resta_max && prom>resta_min){
-    	return true;
+  	if(prom < 0.3 && prom > -0.3){
+    		return true;
     }
   	else{
 		return false;
