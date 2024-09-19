@@ -1,0 +1,223 @@
+#include <Adafruit_LiquidCrystal.h>
+Adafruit_LiquidCrystal lcd(12, 11, 10, 9, 8, 7);
+float val = 0;
+unsigned short tam = 0;
+unsigned short cont = 0;
+float *arr_amp = new float[tam];
+float *resize_arr;
+unsigned long lastTime = 0; 
+unsigned long currentTime = 0;  
+unsigned long timeDiff = 0; 
+const int tam_max = 130;
+
+void setup()
+{
+	lcd.begin(16, 2);
+    Serial.begin(9200);
+	lastTime = millis();
+}
+
+void loop()
+{
+  //Lectura de valores previa a la activacion de los botones
+  val = analogRead(0);
+  val /= 100;
+  
+  if (digitalRead(6) == HIGH && digitalRead(5) == LOW)
+  {
+  	//Proceso de adquisicion de informacion.
+    
+    val = analogRead(0);
+  	val /= 100;   
+    
+    if(cont==tam){
+    	unsigned int nuevoTam = tam + 1;
+      	
+      	resize_arr = new float[nuevoTam];
+      	
+      	for(int i=0; i<tam; i++){
+          resize_arr[i] = arr_amp[i];
+        }  
+    	
+      	delete[] arr_amp;
+    	arr_amp = resize_arr; 
+    	tam = nuevoTam;
+    }
+    
+    arr_amp[cont] = val;
+    cont++;
+    
+    //Tiempo de muestreo
+    currentTime = millis();
+    timeDiff = currentTime - lastTime;
+    lastTime = currentTime;
+    Serial.print("Tiempo entre datos: ");
+    Serial.println(timeDiff);
+    
+    if(tam == tam_max){ 
+      	
+      	//Si se alcanza tamaño maximo, se reinicia el arreglo
+      	// Evitar que se agote la memoria dinamica
+      	
+      	delete[] arr_amp;
+    	tam = 0;
+      	arr_amp = new float[tam];
+    	cont = 0;
+    }
+  }
+  
+  else if(digitalRead(6) == HIGH && digitalRead(5) == HIGH)
+  {
+  
+    //Detener proceso de adquisicion y realizar procesamiento de
+    //informacion para ser entregada  
+    
+    calcularAmplitud(arr_amp, tam);
+    delay(250);
+    lcd.clear();
+    
+    calcularFrecuencia(arr_amp, tam);
+    delay(250);
+    lcd.clear();
+    
+    tipoDeSenal(arr_amp, tam); 
+    delay(250);
+  	lcd.clear();
+  }  
+}
+
+void calcularFrecuencia(float *arr, int esp){
+	
+  	if (esp == 0)
+    {
+        lcd.setCursor(0, 0);
+        lcd.print("No hay datos");
+        return;
+    }
+  
+  	unsigned int cont_picos = 0;
+  	unsigned int cont_datos = 0;
+  
+  	for (int i = 1; i< tam-1; i++){
+  	
+    if (esPicoMaximo(arr_amp[i-1], arr_amp[i], arr_amp[i+1])) {
+    	cont_picos++;
+    
+    	if (cont_picos >= 2){
+  			float periodo = 26.5 * cont_datos;
+  			cont_datos = 0;
+          	float frecuencia = 1000.0 / periodo;
+        	lcd.setCursor(0, 0);
+  			lcd.print("Frecuencia:");
+  			lcd.setCursor(0, 1);
+  			lcd.print(frecuencia);
+  			delay(250);
+  		}  
+  	}
+    else if(cont_picos >= 1){
+    	cont_datos++;	
+    }  
+  }
+}
+
+
+bool esPicoMaximo(float anterior, float actual, float siguiente) {
+    return (anterior < actual && actual >= siguiente);
+}
+
+
+void calcularAmplitud(float *arr, int esp) {
+    if (esp == 0)
+    {
+        lcd.setCursor(0, 0);
+        lcd.print("No hay datos");
+        return;
+    }
+
+    float max = arr[0];
+    float min = arr[0];
+
+    for (int i = 1; i < esp; i++)
+    {
+        if (arr[i] > max)
+        {
+            max = arr[i];
+        }
+        if (arr[i] < min)
+        {
+            min = arr[i];
+        }
+    }
+
+    float amplitud = (max - min)/2.0;
+    lcd.setCursor(0, 0);
+    lcd.print("Amplitud:");
+    lcd.setCursor(0, 1);
+    lcd.print(amplitud);
+    delay(250);
+}
+
+void tipoDeSenal(float *arr, int esp) {
+  
+  if (esp == 0)
+  {
+        lcd.setCursor(0, 0);
+        lcd.print("No hay datos");
+        return;
+  }
+  
+  if(esCuadrada(arr, esp)){
+  lcd.setCursor(0, 0);	
+  lcd.print("Tipo: Cuadrada");
+  delay(250);
+  }  
+	
+  else if(esTriangular(arr, esp)){
+  lcd.setCursor(0, 0);	
+  lcd.print("Tipo: Triangular");
+  delay(250);
+  }  
+
+  else{
+  lcd.print("Tipo: Desconocida");
+  delay(250);
+  }  
+}
+
+bool esCuadrada(float *arr, int esp) {
+	for (int i = 0; i < esp-1; i++) {
+  	
+      if(arr[i] == arr[i+1] || arr[i] == -1*(arr[i+1])){
+      }
+      else {
+      	return false;
+      }
+    } 
+	return true;	
+} 
+
+bool esTriangular(float *arr, int esp) {
+	
+  	float aux = arr[0];
+    float sum_resta = 0;
+  	int cont_prom = 0;	
+	float prom;
+  	
+  	for(int i = 1; i<tam; i++){
+    	float resta = arr[i] - aux;  
+      
+      	sum_resta += resta;
+    	cont_prom++;
+        aux = arr[i];
+    	
+	}
+	
+  	prom = sum_resta/cont_prom; 
+	
+  	if(prom < 0.3 && prom > -0.3){
+    		return true;
+    }
+  	else{
+		return false;
+    }
+}
